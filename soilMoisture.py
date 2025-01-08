@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify
 # Soil moisture sensor class
 class SoilMoistureSensor:
         #Constructor
-        def __init__(self, channel=0, dry_threshold=0.75, wet_threshold=0.35):
+        def __init__(self, channel=0, dry_threshold=0.75, wet_threshold=0.55):
                 try: 
                         self.moisture_channel = MCP3008(channel=channel)
                         print("MCP3008 init success.")
@@ -34,11 +34,12 @@ class SoilMoistureSensor:
                         return "Moisture Level: Moderate"
 
 # Kafka Producer class
+class KafkaPublisher:
         # Constructor
         def __init__(self, topic, broker):
                 self.topic = topic
                 self.producer = KafkaProducer(bootstrap_servers=[broker], value_serializer=lambda v: json.dumps(v).encode('utf-8'))
-        
+
         def send_data(self, data):
                 # Send JSON data to the Kafka topic
                 self.producer.send(self.topic, value=data)
@@ -55,7 +56,7 @@ KAFKA_BROKER = "localhost:9092"
 sensor = SoilMoistureSensor()
 kafka_publisher = KafkaPublisher(topic=KAFKA_TOPIC, broker=KAFKA_BROKER)
 
-@app.route("/send-moisture", mehtods=["POST"])
+@app.route("/send-moisture", methods=["POST"])
 def send_moisture():
         # Get current moisture data
         moisture_value = sensor.get_moisture_value()
@@ -70,43 +71,7 @@ def send_moisture():
         # Publish to Kafka
         kafka_publisher.send_data(data)
         
-        return jsonify({"status": "Message send to Kafka", "data": data}), 200
+        return jsonify({"status": "Message sent to Kafka", "data": data}), 200
 
 if __name__ == "__main__":
         app.run(host="0.0.0.0", port=5000)
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-       # def moistureCalculation():
-                #Define the channel for the moisture sensor
-                #moisture_channel = MCP3008(channel=0)
-
-                #Threshold values for dry vs wet (adjust based on your testing)
-                #DRY_THRESHOLD = 0.75 #High value for dry condition, to be adjusted as needed (between 0 and 1)
-                #WET_THRESHOLD = 0.35 #Lower value for wet condition, to be adjusted as needed (between 0 and 1)
-
-                #while True:
-                        #Read analog value from the moisture sensor
-                 #       moisture_value = moisture_channel.value
-                                
-                        #Check moisture level and detgermine if plant needs watering
-                  #      if moisture_value >= DRY_THRESHOLD:
-                   #             print("Moisture Level: Dry! Plant needs watering.")
-                    #    elif moisture_value <= WET_THRESHOLD:
-                     #           print("MOisture Level: Wet! No need for watering.")
-                      #  else:
-                       #         print("Moisture Level: Moderate")
-                        
-                        #Print raw values for reference
-                        #print(f"Moisture Sensor Value: {moisture_value:.2f}\n")
-                        
-                        #Delay to avoid excessive readings
-                        #sleep(10)
-        

@@ -4,6 +4,7 @@ from kafka import KafkaProducer
 import spidev
 import json
 from flask import Flask, request, jsonify
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # Soil moisture sensor class
 class SoilMoistureSensor:
@@ -16,6 +17,9 @@ class SoilMoistureSensor:
                         print(f"Error in init MCP3008: {e}")
                 self.dry_threshold = dry_threshold
                 self.wet_threshold = wet_threshold
+        
+        def get_channel(self):
+                return self.moisture_channel
         
         def get_moisture_value(self):
                 return self.moisture_channel.value
@@ -56,14 +60,40 @@ KAFKA_BROKER = "localhost:9092"
 sensor = SoilMoistureSensor()
 kafka_publisher = KafkaPublisher(topic=KAFKA_TOPIC, broker=KAFKA_BROKER)
 
-@app.route("/send-moisture", methods=["POST"])
-def send_moisture():
+# APScheduler
+scheduler = BackgroundScheduler()
+
+def publish_moisture_data():
         # Get current moisture data
         moisture_value = sensor.get_moisture_value()
         moisture_status = sensor.get_moisture_status()
         
         # Create JSON payload
         data = {
+                "moisture_channel": 0,
+                "moisture_value": round(moisture_value, 2),
+                "moisture_status": moisture_status,
+        }
+        
+        # Publish to Kafka
+        kafka_publisher.send_data(data)
+        print(f"Published data: {data}")
+
+# Schedule the task every 5 minutes
+scheduler.add_job(publish_moisture_data, "interval", minutes=2)
+scheduler.start()
+
+
+@app.route("/send-moisture", methods=["POST"])
+def send_moisture():
+        # Get current moisture data
+        moisture_value = sensor.get_moisture_value()
+        moisture_status = sensor.get_moisture_status()
+        moisture_channel = sensor.get_channel()
+        
+        # Create JSON payload
+        data = {
+                "moisture_channel": 0,
                 "moisture_value": round(moisture_value, 2),
                 "moisture_status": moisture_status,
         }
@@ -74,4 +104,7 @@ def send_moisture():
         return jsonify({"status": "Message sent to Kafka", "data": data}), 200
 
 if __name__ == "__main__":
-        app.run(host="0.0.0.0", port=5000)
+        try:
+                app.run(host="0.0.0.0", port=5000)
+        except (KeyboardInterrupt, SystemExit):
+                scheduler.shutdown()

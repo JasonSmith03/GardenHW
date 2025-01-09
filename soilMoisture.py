@@ -71,6 +71,7 @@ def publish_moisture_data():
         # Create JSON payload
         data = {
                 "moisture_channel": 0,
+                "plant_name": "planty",
                 "moisture_value": round(moisture_value, 2),
                 "moisture_status": moisture_status,
         }

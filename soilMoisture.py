@@ -3,6 +3,7 @@ from time import sleep
 from kafka import KafkaProducer
 import spidev
 import json
+import os
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -54,7 +55,7 @@ app = Flask(__name__)
 
 # Kafka Config
 KAFKA_TOPIC = "plant_data"
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER =  os.getenv("KAFKA_BROKER", "localhost:9092")
 
 # Init classes
 sensor = SoilMoistureSensor()
@@ -71,9 +72,9 @@ def publish_moisture_data():
         # Create JSON payload
         data = {
                 "moisture_channel": 0,
-                "plant_name": "planty",
-                "moisture_value": round(moisture_value, 2),
-                "moisture_status": moisture_status,
+                "name": "planty",
+                "moisture_pct": round(moisture_value, 2),
+                "status_msg": moisture_status,
         }
         
         # Publish to Kafka
@@ -81,7 +82,7 @@ def publish_moisture_data():
         print(f"Published data: {data}")
 
 # Schedule the task every 5 minutes
-scheduler.add_job(publish_moisture_data, "interval", minutes=2)
+scheduler.add_job(publish_moisture_data, "interval", minutes=1)
 scheduler.start()
 
 
